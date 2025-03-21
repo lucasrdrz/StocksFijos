@@ -62,7 +62,7 @@ for sitio in sitios_unicos:
 
         # **Configurar columnas editables y no editables**
         editable_columns = ['Stock']
-        disabled_columns = ['Stock Debería']
+        disabled_columns = ['Stock Deberia']
 
         # Mostrar la tabla en Streamlit
         st.data_editor(df_filtrado, height=300, use_container_width=True, 
@@ -90,7 +90,7 @@ def modificar_stock(sitio, parte, cantidad, operacion):
             df.loc[mask, 'Stock'] = df['Stock'].clip(lower=0)  # Evitar valores negativos
     else:
         if operacion == "sumar":
-            nuevo_registro = pd.DataFrame([[sitio, parte, cantidad, 0]], columns=['Sitio', 'Parte', 'Stock', 'Stock Debería'])
+            nuevo_registro = pd.DataFrame([[sitio, parte, cantidad, 0]], columns=['Sitio', 'Parte', 'Stock', 'Stock Deberia'])
             df = pd.concat([df, nuevo_registro], ignore_index=True)
 
     # **Llamar a la función que actualiza Google Sheets**
