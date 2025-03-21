@@ -24,37 +24,25 @@ SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 # Función para leer el stock desde Google Sheets
 def leer_stock():
     sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:C').execute()
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:D').execute()
     values = result.get('values', [])
 
     if not values:
-        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock'])
+        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock', 'Stock Debería'])
 
     # Convertimos la primera fila en encabezados, asegurándonos de que no haya espacios en blanco
     headers = [h.strip().lower() for h in values[0]]  # Convertimos a minúsculas
     df = pd.DataFrame(values[1:], columns=headers)
 
     # Renombramos las columnas para que coincidan con los nombres esperados
-    column_map = {'sitio': 'Sitio', 'parte': 'Parte', 'stock': 'Stock'}
+    column_map = {'sitio': 'Sitio', 'parte': 'Parte', 'stock': 'Stock', 'stock debería': 'Stock Debería'}
     df.rename(columns=column_map, inplace=True)
 
-    # Convertimos la columna Stock a numérico (puede tener valores vacíos o mal formateados)
+    # Convertimos las columnas Stock y Stock Debería a numérico
     df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0)
+    df['Stock Debería'] = pd.to_numeric(df['Stock Debería'], errors='coerce').fillna(0)
 
     return df
-
-# **Función para actualizar stock en Google Sheets**
-def actualizar_stock(df):
-    sheet = service.spreadsheets()
-    data = [df.columns.tolist()] + df.values.tolist()  # Convertimos DataFrame a lista
-    body = {'values': data}
-    
-    sheet.values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range='StockFijo!A:C',
-        valueInputOption='RAW',
-        body=body
-    ).execute()
 
 # **Interfaz en Streamlit**
 st.title("📦 Control de Stock Fijo - Logística")
@@ -71,7 +59,14 @@ sitios_unicos = sorted(df_stock['Sitio'].unique())
 for sitio in sitios_unicos:
     with st.expander(f"📌 {sitio}", expanded=False):
         df_filtrado = df_stock[df_stock['Sitio'] == sitio]
-        st.data_editor(df_filtrado, height=300, use_container_width=True)
+
+        # **Configurar columnas editables y no editables**
+        editable_columns = ['Stock']
+        disabled_columns = ['Stock Debería']
+
+        # Mostrar la tabla en Streamlit
+        st.data_editor(df_filtrado, height=300, use_container_width=True, 
+                       column_config={col: st.column_config.Column(disabled=True) for col in disabled_columns})
 
 # **Formulario para modificar stock**
 st.subheader("Actualizar Stock")
@@ -95,7 +90,7 @@ def modificar_stock(sitio, parte, cantidad, operacion):
             df.loc[mask, 'Stock'] = df['Stock'].clip(lower=0)  # Evitar valores negativos
     else:
         if operacion == "sumar":
-            nuevo_registro = pd.DataFrame([[sitio, parte, cantidad]], columns=['Sitio', 'Parte', 'Stock'])
+            nuevo_registro = pd.DataFrame([[sitio, parte, cantidad, 0]], columns=['Sitio', 'Parte', 'Stock', 'Stock Debería'])
             df = pd.concat([df, nuevo_registro], ignore_index=True)
 
     # **Llamar a la función que actualiza Google Sheets**
