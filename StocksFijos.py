@@ -5,6 +5,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 import json
 
+# Configurar las credenciales y el servicio de la API de Google Sheets
 def load_credentials():
     try:
         SERVICE_ACCOUNT_INFO = st.secrets["GCP_KEY_JSON"]
@@ -17,19 +18,7 @@ def load_credentials():
         st.stop()
 
 service = load_credentials()
-# Configuración de credenciales y API
-SERVICE_ACCOUNT_FILE = './key2.json'  # Ruta del archivo de credenciales
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-# Cargar credenciales
-credentials = service_account.Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE, scopes=SCOPES
-)
-
-# Crear servicio para la API de Google Sheets
-service = build('sheets', 'v4', credentials=credentials)
-
-# ID de la hoja de cálculo
 SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 
 # Función para leer el stock desde Google Sheets
