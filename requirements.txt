@@ -1,7 +1,6 @@
 pandas
 streamlit
 qrcode
-json
 openpyxl
 opencv-python-headless
 pyzbar
