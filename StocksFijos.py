@@ -28,7 +28,7 @@ def leer_stock():
     values = result.get('values', [])
 
     if not values:
-        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock', 'Stock Debería'])
+        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock', 'Stock Deberia'])
 
     # Convertimos la primera fila en encabezados, asegurándonos de que no haya espacios en blanco
     headers = [h.strip().lower() for h in values[0]]  # Convertimos a minúsculas
