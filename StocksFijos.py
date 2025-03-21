@@ -4,6 +4,18 @@ import pandas as pd
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
+def load_credentials():
+    try:
+        SERVICE_ACCOUNT_INFO = st.secrets["GCP_KEY_JSON"]
+        info = json.loads(SERVICE_ACCOUNT_INFO)
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+        credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        return build('sheets', 'v4', credentials=credentials)
+    except Exception as e:
+        st.error(f"Error al configurar las credenciales: {e}")
+        st.stop()
+
+service = load_credentials()
 # Configuración de credenciales y API
 SERVICE_ACCOUNT_FILE = './key2.json'  # Ruta del archivo de credenciales
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
