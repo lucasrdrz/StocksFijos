@@ -30,19 +30,32 @@ def leer_stock():
     if not values:
         return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock', 'Stock Deberia'])
 
-    # Convertimos la primera fila en encabezados, asegurándonos de que no haya espacios en blanco
-    headers = [h.strip().lower() for h in values[0]]  # Convertimos a minúsculas
+    # Convertimos la primera fila en encabezados, eliminando espacios extra
+    headers = [h.strip().lower() for h in values[0]]  
     df = pd.DataFrame(values[1:], columns=headers)
 
-    # Renombramos las columnas para que coincidan con los nombres esperados
-    column_map = {'sitio': 'Sitio', 'parte': 'Parte', 'stock': 'Stock', 'stock debería': 'Stock Debería'}
+    # Renombramos las columnas asegurando que coincidan
+    column_map = {'sitio': 'Sitio', 'parte': 'Parte', 'stock': 'Stock', 'stock deberia': 'Stock Deberia'}
     df.rename(columns=column_map, inplace=True)
 
-    # Convertimos las columnas Stock y Stock Debería a numérico
+    # Convertimos las columnas numéricas correctamente
     df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0)
-    df['Stock Debería'] = pd.to_numeric(df['Stock Debería'], errors='coerce').fillna(0)
+    df['Stock Deberia'] = pd.to_numeric(df['Stock Deberia'], errors='coerce').fillna(0)
 
     return df
+
+# **Función para actualizar stock en Google Sheets**
+def actualizar_stock(df):
+    sheet = service.spreadsheets()
+    data = [df.columns.tolist()] + df.values.tolist()  
+    body = {'values': data}
+    
+    sheet.values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range='StockFijo!A:D',  # Se actualiza con la nueva columna
+        valueInputOption='RAW',
+        body=body
+    ).execute()
 
 # **Interfaz en Streamlit**
 st.title("📦 Control de Stock Fijo - Logística")
@@ -59,14 +72,13 @@ sitios_unicos = sorted(df_stock['Sitio'].unique())
 for sitio in sitios_unicos:
     with st.expander(f"📌 {sitio}", expanded=False):
         df_filtrado = df_stock[df_stock['Sitio'] == sitio]
-
-        # **Configurar columnas editables y no editables**
-        editable_columns = ['Stock']
-        disabled_columns = ['Stock Deberia']
-
-        # Mostrar la tabla en Streamlit
-        st.data_editor(df_filtrado, height=300, use_container_width=True, 
-                       column_config={col: st.column_config.Column(disabled=True) for col in disabled_columns})
+        # Configurar "Stock Deberia" como solo lectura
+        st.data_editor(
+            df_filtrado, 
+            height=300, 
+            use_container_width=True, 
+            column_config={"Stock Deberia": st.column_config.NumberColumn(disabled=True)}
+        )
 
 # **Formulario para modificar stock**
 st.subheader("Actualizar Stock")
