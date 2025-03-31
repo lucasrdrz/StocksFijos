@@ -102,7 +102,7 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
     # Asegurarse de que el valor es un número entero o flotante
     nuevo_stock = int(nuevo_stock) if nuevo_stock.is_integer() else nuevo_stock
 
-    # Actualizar el stock en Google Sheets en la columna 'Stock Físico'
+    # Actualizar el stock en Google Sheets
     range_update = f"StockFijo!D{i}"  # Columna 'Stock Físico' en la fila correspondiente
     body = {
         'values': [[nuevo_stock]]
@@ -118,7 +118,7 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
         st.success(f"Stock actualizado correctamente para {parte} en {sitio}. Nuevo stock: {nuevo_stock}")
     except Exception as e:
         st.error(f"Error al actualizar stock: {e}")
-
+        
 # **Interfaz en Streamlit**
 st.title("📦 Control de Stock Fijo - Logística")
 st.subheader("📍 Selecciona un sitio para ver su stock:")
