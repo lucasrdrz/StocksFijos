@@ -103,7 +103,7 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
     nuevo_stock = int(nuevo_stock) if nuevo_stock.is_integer() else nuevo_stock
 
     # Actualizar el stock en Google Sheets
-    range_update = f"StockFijo!C{i}"  # Columna 'Stock Físico' en la fila correspondiente
+    range_update = f"StockFijo!D{i}"  # Columna 'Stock Físico' en la fila correspondiente
     body = {
         'values': [[nuevo_stock]]
     }
