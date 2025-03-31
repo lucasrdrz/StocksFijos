@@ -77,7 +77,7 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
     # Buscar la parte específica en el sitio seleccionado
     for i, row in enumerate(values[1:], start=2):  # Empezamos en 2 para omitir el encabezado
         if row[0] == sitio and row[1] == parte:
-            stock_fisico = row[2]  # La columna 'Stock Físico' es la 3ra (índice 2)
+            stock_fisico = row[2]  # La columna 'Stock Físico' está en la posición 3 (índice 2)
             break
     else:
         st.error("Parte no encontrada en el sitio seleccionado.")
@@ -85,7 +85,7 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
 
     try:
         # Asegurarse de que el stock_fisico sea un número válido
-        stock_fisico = float(stock_fisico) if stock_fisico else 0  # Si está vacío, se asigna 0
+        stock_fisico = float(stock_fisico) if stock_fisico and stock_fisico.isdigit() else 0  # Si está vacío o no es numérico, se asigna 0
     except ValueError as e:
         st.error(f"Error al convertir el stock a número: {e}")
         return
