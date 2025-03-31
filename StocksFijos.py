@@ -77,18 +77,17 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
     # Buscar la parte específica en el sitio seleccionado
     for i, row in enumerate(values[1:], start=2):  # Empezamos en 2 para omitir el encabezado
         if row[0] == sitio and row[1] == parte:
-            stock_fisico = row[2]  # La columna 'Stock Físico' está en la posición 3 (índice 2)
+            stock_fisico = row[3] if len(row) > 3 else "0"  # Asegurar que tomamos la columna D (índice 3)
             break
     else:
         st.error("Parte no encontrada en el sitio seleccionado.")
         return
 
     try:
-        # Asegurarse de que el stock_fisico sea un número válido
-        stock_fisico = float(stock_fisico) if stock_fisico and stock_fisico.isdigit() else 0  # Si está vacío o no es numérico, se asigna 0
-    except ValueError as e:
-        st.error(f"Error al convertir el stock a número: {e}")
-        return
+        # Convertir el stock actual a número, si no es válido se usa 0
+        stock_fisico = float(stock_fisico) if stock_fisico.replace('.', '', 1).isdigit() else 0
+    except ValueError:
+        stock_fisico = 0
 
     # Realizar la operación (sumar o restar)
     if operacion == "sumar":
@@ -102,11 +101,9 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
     # Asegurarse de que el valor es un número entero o flotante
     nuevo_stock = int(nuevo_stock) if nuevo_stock.is_integer() else nuevo_stock
 
-    # Actualizar el stock en Google Sheets
-    range_update = f"StockFijo!D{i}"  # Columna 'Stock Físico' en la fila correspondiente
-    body = {
-        'values': [[nuevo_stock]]
-    }
+    # Actualizar el stock en Google Sheets en la columna correcta (D)
+    range_update = f"StockFijo!D{i}"  
+    body = {'values': [[nuevo_stock]]}
 
     try:
         sheet.values().update(
@@ -115,10 +112,9 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
             valueInputOption='RAW',
             body=body
         ).execute()
-        st.success(f"Stock actualizado correctamente para {parte} en {sitio}. Nuevo stock: {nuevo_stock}")
+        st.success(f"✅ Stock actualizado correctamente para {parte} en {sitio}. Nuevo stock: {nuevo_stock}")
     except Exception as e:
-        st.error(f"Error al actualizar stock: {e}")
-        
+        st.error(f"❌ Error al actualizar stock: {e}")
 # **Interfaz en Streamlit**
 st.title("📦 Control de Stock Fijo - Logística")
 st.subheader("📍 Selecciona un sitio para ver su stock:")
