@@ -83,11 +83,18 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
         st.error("Parte no encontrada en el sitio seleccionado.")
         return
 
+    try:
+        # Asegurarse de que el stock_fisico sea un número válido
+        stock_fisico = float(stock_fisico) if stock_fisico else 0  # Si está vacío, se asigna 0
+    except ValueError as e:
+        st.error(f"Error al convertir el stock a número: {e}")
+        return
+
     # Realizar la operación (sumar o restar)
     if operacion == "sumar":
-        nuevo_stock = float(stock_fisico) + cantidad
+        nuevo_stock = stock_fisico + cantidad
     elif operacion == "restar":
-        nuevo_stock = float(stock_fisico) - cantidad
+        nuevo_stock = stock_fisico - cantidad
     else:
         st.error("Operación no válida. Solo se puede sumar o restar.")
         return
@@ -120,22 +127,4 @@ st.subheader("📍 Selecciona un sitio para ver su stock:")
 df_stock = leer_stock()
 
 # Desplegable para elegir el sitio
-sitio_seleccionado = st.selectbox("Selecciona un sitio", df_stock['Sitio'].unique())
-
-# Mostrar datos del sitio seleccionado
-df_sitio = df_stock[df_stock['Sitio'] == sitio_seleccionado]
-st.write(df_sitio)
-
-# Seleccionar la parte
-parte_seleccionada = st.selectbox("Selecciona una parte", df_sitio['Parte'])
-
-# Ingresar la cantidad para sumar o restar
-cantidad = st.number_input("Cantidad a sumar/restar", min_value=1)
-
-# Seleccionar operación (sumar o restar)
-operacion = st.radio("Selecciona una operación", ("sumar", "restar"))
-
-# Botón para actualizar stock
-if st.button("Actualizar stock"):
-    actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
-
+sitio_seleccionado = st.selectbox("Selecciona un sitio", df_stock['Sitio
