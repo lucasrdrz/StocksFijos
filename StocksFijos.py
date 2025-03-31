@@ -28,14 +28,14 @@ def leer_stock():
     values = result.get('values', [])
 
     if not values:
-        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock', 'Stock Deberia'])
+        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo'])
 
     # Convertimos la primera fila en encabezados, eliminando espacios extra
     headers = [h.strip().lower() for h in values[0]]  
     df = pd.DataFrame(values[1:], columns=headers)
 
     # Renombramos las columnas asegurando que coincidan
-    column_map = {'sitio': 'Sitio', 'parte': 'Parte', 'stock': 'Stock', 'stock deberia': 'Stock Deberia'}
+    column_map = {'sitio': 'Sitio', 'parte': 'Parte', 'stock': 'Stock Físico', 'Stock Físico': 'Stock Óptimo'}
     df.rename(columns=column_map, inplace=True)
 
     # Convertimos las columnas numéricas correctamente
@@ -96,13 +96,13 @@ def modificar_stock(sitio, parte, cantidad, operacion):
 
     if not df[mask].empty:
         if operacion == "sumar":
-            df.loc[mask, 'Stock'] += cantidad
+            df.loc[mask, 'Stock Físico'] += cantidad
         elif operacion == "restar":
-            df.loc[mask, 'Stock'] -= cantidad
-            df.loc[mask, 'Stock'] = df['Stock'].clip(lower=0)  # Evitar valores negativos
+            df.loc[mask, 'Stock Físico'] -= cantidad
+            df.loc[mask, 'Stock Físico'] = df['Stock Físico'].clip(lower=0)  # Evitar valores negativos
     else:
         if operacion == "sumar":
-            nuevo_registro = pd.DataFrame([[sitio, parte, cantidad, 0]], columns=['Sitio', 'Parte', 'Stock', 'Stock Deberia'])
+            nuevo_registro = pd.DataFrame([[sitio, parte, cantidad, 0]], columns=['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo'])
             df = pd.concat([df, nuevo_registro], ignore_index=True)
 
     # **Llamar a la función que actualiza Google Sheets**
