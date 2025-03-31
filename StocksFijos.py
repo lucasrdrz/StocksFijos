@@ -39,8 +39,8 @@ def leer_stock():
     df.rename(columns=column_map, inplace=True)
 
     # Convertimos las columnas numéricas correctamente
-    df['Stock'] = pd.to_numeric(df['Stock'], errors='coerce').fillna(0)
-    df['Stock Deberia'] = pd.to_numeric(df['Stock Deberia'], errors='coerce').fillna(0)
+    df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
+    df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
 
     return df
 
