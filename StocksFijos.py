@@ -1,5 +1,4 @@
 import streamlit as st
-import gspread
 import pandas as pd
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
@@ -18,7 +17,6 @@ def load_credentials():
         st.stop()
 
 service = load_credentials()
-
 SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 
 # Función para leer el stock desde Google Sheets
@@ -29,58 +27,43 @@ def leer_stock():
 
     if not values:
         return pd.DataFrame(columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
-    
-    headers = [h.strip().lower() for h in values[0]]  # Normalizar encabezados
-    df = pd.DataFrame(values[1:], columns=headers)
 
+    # Convertimos la primera fila en encabezados, eliminando espacios extra
+    headers = [h.strip().lower() for h in values[0]]  
+    df = pd.DataFrame(values[1:], columns=headers)
+    df.columns = df.columns.str.strip()
+
+    # Renombramos las columnas asegurando que coincidan
     column_map = {
         'sitio': 'Sitio', 
         'parte': 'Parte', 
-        'descripcion': 'Descripción', 
+        'descripción': 'Descripción',  # Asegurar que coincida con Google Sheets
         'stock': 'Stock Físico', 
         'stock deberia': 'Stock Óptimo'
     }
-    
-    # Validar que las columnas esperadas existan antes de renombrarlas
-    for col in column_map.keys():
-        if col not in df.columns:
-            st.error(f"Falta la columna esperada en Google Sheets: {col}")
-            return pd.DataFrame(columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
-    
     df.rename(columns=column_map, inplace=True)
-    
-    # Convertir columnas numéricas
-    try:
-        df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
-        df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
-    except KeyError as e:
-        st.error(f"Error en conversión numérica: {e}")
-        return pd.DataFrame(columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
-    
-    return df
 
-# **Función para actualizar stock en Google Sheets**
-def actualizar_stock(df):
-    sheet = service.spreadsheets()
-    data = [df.columns.tolist()] + df.values.tolist()
-    body = {'values': data}
-    
-    sheet.values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range='StockFijo!A:E',
-        valueInputOption='RAW',
-        body=body
-    ).execute()
+    # Convertimos las columnas numéricas correctamente
+    df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
+    df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
+
+    return df
 
 # **Interfaz en Streamlit**
 st.title("📦 Control de Stock Fijo - Logística")
 
 st.subheader("📍 Selecciona un sitio para ver su stock:")
 
+# Leer el stock una vez para evitar múltiples llamadas a la API
 df_stock = leer_stock()
 
+# Verificar que las columnas estén correctas
+st.write("Columnas detectadas:", df_stock.columns.tolist())
+
+# Obtener los sitios únicos
 sitios_unicos = sorted(df_stock['Sitio'].unique())
 
+# Crear expanders por cada sitio
 for sitio in sitios_unicos:
     with st.expander(f"📌 {sitio}", expanded=False):
         df_filtrado = df_stock[df_stock['Sitio'] == sitio]
@@ -98,17 +81,30 @@ parte = st.text_input("🔢 Número de Parte:")
 cantidad = st.number_input("📦 Cantidad:", min_value=1, step=1)
 operacion = st.radio("🔄 Operación:", ["sumar", "restar"])
 
+# **Función para actualizar stock**
+def actualizar_stock(df):
+    sheet = service.spreadsheets()
+    data = [df.columns.tolist()] + df.values.tolist()
+    body = {'values': data}
+    
+    sheet.values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range='StockFijo!A:E',
+        valueInputOption='RAW',
+        body=body
+    ).execute()
+
 # **Función para modificar stock**
 def modificar_stock(sitio, parte, cantidad, operacion):
     df = leer_stock()
     mask = (df['Sitio'] == sitio) & (df['Parte'] == parte)
-    
+
     if not df[mask].empty:
         if operacion == "sumar":
             df.loc[mask, 'Stock Físico'] += cantidad
         elif operacion == "restar":
             df.loc[mask, 'Stock Físico'] -= cantidad
-            df.loc[mask, 'Stock Físico'] = df['Stock Físico'].clip(lower=0)
+            df.loc[mask, 'Stock Físico'] = df['Stock Físico'].clip(lower=0)  # Evitar valores negativos
     else:
         if operacion == "sumar":
             nuevo_registro = pd.DataFrame([[sitio, parte, '', cantidad, 0]], columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
@@ -125,5 +121,7 @@ if st.button("Actualizar"):
     else:
         st.error("⚠️ Completa todos los campos correctamente.")
 
+# **Botón para refrescar datos manualmente**
 if st.button("🔄 Refrescar datos"):
     st.experimental_rerun()
+
