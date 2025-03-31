@@ -13,48 +13,88 @@ creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FI
 service = build("sheets", "v4", credentials=creds)
 sheet = service.spreadsheets()
 
+# Función para leer datos desde Google Sheets
 def leer_stock():
     """Lee los datos de stock desde Google Sheets y los devuelve como un DataFrame."""
     result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:E').execute()
     values = result.get("values", [])
+    
+    if not values:
+        return pd.DataFrame(columns=["Sitio", "Parte", "Stock Fisico"])
+
     df = pd.DataFrame(values[1:], columns=values[0])  # Asigna nombres de columnas desde la primera fila
-    df["Stock Fisico"] = pd.to_numeric(df["Stock Fisico"], errors='coerce')  # Convierte a número
+    df["Stock Fisico"] = pd.to_numeric(df["Stock Fisico"], errors='coerce').fillna(0)  # Convertir a número
     return df
 
-def actualizar_stock(sitio, parte, cantidad, operacion):
-    """Actualiza el stock de una parte en un sitio específico."""
+# Función para actualizar stock en Google Sheets
+def actualizar_stock(df):
+    """Envía los datos actualizados a Google Sheets."""
+    valores = df.values.tolist()
+    body = {"values": [df.columns.tolist()] + valores}
+    sheet.values().update(
+        spreadsheetId=SPREADSHEET_ID,
+        range="StockFijo!A:E",
+        valueInputOption="RAW",
+        body=body
+    ).execute()
+
+# Función para modificar el stock
+def modificar_stock(sitio, parte, cantidad, operacion):
     df = leer_stock()
-    filtro = (df['Sitio'] == sitio) & (df['Parte'] == parte)
-    
-    if not df[filtro].empty:
-        stock_fisico = df.loc[filtro, 'Stock Fisico'].values[0]
-        
-        if pd.isna(stock_fisico):  # Verifica si es un valor inválido
-            st.error(f"Error: El valor de stock físico para {parte} en {sitio} no es un número válido.")
+
+    # Filtrar por sitio y parte
+    mask = (df['Sitio'] == sitio) & (df['Parte'] == parte)
+
+    if not df[mask].empty:
+        try:
+            df.loc[mask, 'Stock Fisico'] = pd.to_numeric(df.loc[mask, 'Stock Fisico'], errors='coerce').fillna(0)
+        except Exception as e:
+            st.error(f"❌ Error convirtiendo stock a número: {e}")
             return
-        
-        nuevo_stock = stock_fisico + cantidad if operacion == "sumar" else stock_fisico - cantidad
-        df.loc[filtro, 'Stock Fisico'] = nuevo_stock
-        
-        # Enviar la actualización a Google Sheets
-        range_update = f"StockFijo!C{df.index[filtro][0] + 2}"
-        body = {"values": [[nuevo_stock]]}
-        sheet.values().update(spreadsheetId=SPREADSHEET_ID, range=range_update, valueInputOption='RAW', body=body).execute()
-        st.success(f"Stock actualizado: {parte} en {sitio} ahora tiene {nuevo_stock} unidades.")
+
+        if operacion == "sumar":
+            df.loc[mask, 'Stock Fisico'] += cantidad
+        elif operacion == "restar":
+            df.loc[mask, 'Stock Fisico'] = max(0, df.loc[mask, 'Stock Fisico'] - cantidad)
+
     else:
-        st.error(f"Error: No se encontró la parte {parte} en {sitio}.")
+        if operacion == "sumar":
+            nuevo_registro = pd.DataFrame([[sitio, parte, cantidad]], columns=['Sitio', 'Parte', 'Stock Fisico'])
+            df = pd.concat([df, nuevo_registro], ignore_index=True)
 
-# Interfaz en Streamlit
+    # Actualizar en Google Sheets
+    actualizar_stock(df)
+
+# **Interfaz en Streamlit**
 st.title("Gestión de Stock Fijo")
+
 df_stock = leer_stock()
+sitios = df_stock["Sitio"].unique().tolist()
+partes = df_stock["Parte"].unique().tolist()
 
-sitios = df_stock["Sitio"].unique()
-partes = df_stock["Parte"].unique()
+# **Formulario para modificar stock**
+st.subheader("Actualizar Stock")
+sitio = st.selectbox("🏢 Sitio:", sitios + ["Otro..."])
+parte = st.selectbox("🔢 Número de Parte:", partes + ["Otro..."])
+cantidad = st.number_input("📦 Cantidad:", min_value=1, step=1)
+operacion = st.radio("🔄 Operación:", ["sumar", "restar"])
 
-sitio_seleccionado = st.selectbox("Selecciona un sitio:", sitios)
-parte_seleccionada = st.selectbox("Selecciona una parte:", partes)
-cantidad = st.number_input("Cantidad a sumar/restar:", min_value=1, step=1)
-operacion = st.radio("Operación:", ["sumar", "restar"])
+# Ingreso manual si el sitio o parte no existen en la lista
+if sitio == "Otro...":
+    sitio = st.text_input("Ingresa el nuevo sitio:")
+if parte == "Otro...":
+    parte = st.text_input("Ingresa el nuevo número de parte:")
 
+# **Botón para actualizar stock**
 if st.button("Actualizar Stock"):
-    actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
+    if sitio and parte and cantidad > 0:
+        modificar_stock(sitio, parte, cantidad, operacion)
+        st.success(f"✅ Stock actualizado para {sitio} - {parte}")
+        st.experimental_rerun()  # Recargar datos automáticamente
+    else:
+        st.error("⚠️ Completa todos los campos correctamente.")
+
+# **Botón para refrescar datos manualmente**
+if st.button("🔄 Refrescar datos"):
+    st.experimental_rerun()
+
