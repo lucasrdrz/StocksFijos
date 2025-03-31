@@ -23,15 +23,26 @@ SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 # Función para leer el stock desde Google Sheets
 def leer_stock():
     sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:E').execute()
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:E').execute()  # Cambiar a A:E para incluir la descripción
     values = result.get('values', [])
 
     if not values:
-        return pd.DataFrame(columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
+        st.error("No se encontraron datos en la hoja de Google Sheets.")
+        return pd.DataFrame()
 
     # Convertimos la primera fila en encabezados, eliminando espacios extra
-    headers = [h.strip().lower() for h in values[0]]  
+    headers = [h.strip().lower() for h in values[0]]
+    print(f"Encabezados obtenidos de Google Sheets: {headers}")
+
     df = pd.DataFrame(values[1:], columns=headers)
+
+    # Verificar si las columnas necesarias existen
+    expected_columns = ['sitio', 'parte', 'descripcion', 'stock', 'stock deberia']
+    missing_columns = [col for col in expected_columns if col not in df.columns]
+
+    if missing_columns:
+        st.error(f"Las siguientes columnas faltan en los datos de Google Sheets: {', '.join(missing_columns)}")
+        return pd.DataFrame()
 
     # Renombramos las columnas asegurando que coincidan
     column_map = {
@@ -44,23 +55,30 @@ def leer_stock():
     df.rename(columns=column_map, inplace=True)
 
     # Convertimos las columnas numéricas correctamente
-    df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
-    df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
+    try:
+        df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
+        df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
+    except KeyError as e:
+        st.error(f"Error: No se encontró la columna {e} después del renombrado.")
+        return pd.DataFrame()  # Devuelve un DataFrame vacío si falla
 
     return df
 
-# **Función para actualizar stock en Google Sheets**
+# Función para actualizar stock en Google Sheets
 def actualizar_stock(df):
     sheet = service.spreadsheets()
-    data = [df.columns.tolist()] + df.values.tolist()  
-    body = {'values': data}
-    
-    sheet.values().update(
-        spreadsheetId=SPREADSHEET_ID,
-        range='StockFijo!A:E',  # Actualizar el rango a A:E para incluir la columna "Descripción"
-        valueInputOption='RAW',
-        body=body
-    ).execute()
+    data = [df.columns.tolist()] + df.values.tolist()  # Incluir encabezados en los datos
+
+    try:
+        sheet.values().update(
+            spreadsheetId=SPREADSHEET_ID,
+            range='StockFijo!A:E',  # Actualizar el rango a A:E para incluir la columna "Descripción"
+            valueInputOption='RAW',
+            body={'values': data}
+        ).execute()
+        st.success("✅ Stock actualizado correctamente en Google Sheets.")
+    except Exception as e:
+        st.error(f"Error al actualizar el stock en Google Sheets: {e}")
 
 # **Interfaz en Streamlit**
 st.title("📦 Control de Stock Fijo - Logística")
@@ -78,8 +96,9 @@ if not df_stock.empty:
     for sitio in sitios_unicos:
         with st.expander(f"📌 {sitio}", expanded=False):
             df_filtrado = df_stock[df_stock['Sitio'] == sitio]
-            # Mostrar datos de stock, con "Stock Óptimo" deshabilitado
             st.dataframe(df_filtrado, use_container_width=True)
+else:
+    st.error("No se pudo cargar el stock. Verifica los nombres de las columnas en Google Sheets.")
 
 # **Formulario para modificar stock**
 st.subheader("Actualizar Stock")
@@ -106,20 +125,6 @@ def modificar_stock(sitio, parte, cantidad, operacion):
             nuevo_registro = pd.DataFrame([[sitio, parte, '', cantidad, 0]], columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
             df = pd.concat([df, nuevo_registro], ignore_index=True)
 
-    # **Llamar a la función que actualiza Google Sheets**
-    actualizar_stock(df)
-
-# **Botón para actualizar stock**
-if st.button("Actualizar"):
-    if sitio and parte and cantidad > 0:
-        modificar_stock(sitio, parte, cantidad, operacion)
-        st.success(f"✅ Stock actualizado para {sitio} - {parte}")
-        st.experimental_rerun()  # Recargar datos automáticamente
-    else:
-        st.error("⚠️ Completa todos los campos correctamente.")
-
-# **Botón para refrescar datos manualmente**
-if st.button("🔄 Refrescar datos"):
-    st.experimental_rerun()
+    # **Llamar**
 
 
