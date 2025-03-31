@@ -102,27 +102,7 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
     # Asegurarse de que el valor es un número entero o flotante
     nuevo_stock = int(nuevo_stock) if nuevo_stock.is_integer() else nuevo_stock
 
-    # Actualizar el stock en Google Sheets
-    range_update = f"StockFijo!D{i}"  # **Columna D** es la columna 'Stock Físico', la que necesitamos actualizar
-    body = {
-        'values': [[nuevo_stock]]
-    }
-
-    try:
-        sheet.values().update(
-            spreadsheetId=SPREADSHEET_ID,
-            range=range_update,
-            valueInputOption='RAW',
-            body=body
-        ).execute()
-        st.success(f"Stock actualizado correctamente para {parte} en {sitio}. Nuevo stock: {nuevo_stock}")
-    except Exception as e:
-        st.error(f"Error al actualizar stock: {e}")
-
-    # Asegurarse de que el valor es un número entero o flotante
-    nuevo_stock = int(nuevo_stock) if nuevo_stock.is_integer() else nuevo_stock
-
-    # Actualizar el stock en Google Sheets
+    # Actualizar el stock en Google Sheets en la columna 'Stock Físico'
     range_update = f"StockFijo!D{i}"  # Columna 'Stock Físico' en la fila correspondiente
     body = {
         'values': [[nuevo_stock]]
