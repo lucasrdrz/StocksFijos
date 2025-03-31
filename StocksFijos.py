@@ -105,5 +105,36 @@ def actualizar_stock(sitio, parte, cantidad, operacion):
         sheet.values().update(
             spreadsheetId=SPREADSHEET_ID,
             range=range_update,
-            valueInputOption='
+            valueInputOption='RAW',
+            body=body
+        ).execute()
+        st.success(f"Stock actualizado correctamente para {parte} en {sitio}. Nuevo stock: {nuevo_stock}")
+    except Exception as e:
+        st.error(f"Error al actualizar stock: {e}")
 
+# **Interfaz en Streamlit**
+st.title("📦 Control de Stock Fijo - Logística")
+st.subheader("📍 Selecciona un sitio para ver su stock:")
+
+# Leer stock
+df_stock = leer_stock()
+
+# Desplegable para elegir el sitio
+sitio_seleccionado = st.selectbox("Selecciona un sitio", df_stock['Sitio'].unique())
+
+# Mostrar datos del sitio seleccionado
+df_sitio = df_stock[df_stock['Sitio'] == sitio_seleccionado]
+st.write(df_sitio)
+
+# Seleccionar la parte
+parte_seleccionada = st.selectbox("Selecciona una parte", df_sitio['Parte'])
+
+# Ingresar la cantidad para sumar o restar
+cantidad = st.number_input("Cantidad a sumar/restar", min_value=1)
+
+# Seleccionar operación (sumar o restar)
+operacion = st.radio("Selecciona una operación", ("sumar", "restar"))
+
+# Botón para actualizar stock
+if st.button("Actualizar stock"):
+    actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
