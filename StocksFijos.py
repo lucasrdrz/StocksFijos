@@ -1,5 +1,4 @@
 import streamlit as st
-import gspread
 import pandas as pd
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
@@ -24,23 +23,17 @@ SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 # Función para leer el stock desde Google Sheets
 def leer_stock():
     sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:E').execute()  # Cambiar a A:E para incluir la descripción
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:E').execute()
     values = result.get('values', [])
 
     if not values:
         return pd.DataFrame(columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
 
-    # Convertimos la primera fila en encabezados, eliminando espacios extra y pasando a minúsculas
+    # Convertimos la primera fila en encabezados, eliminando espacios extra
     headers = [h.strip().lower() for h in values[0]]  
-    print("Encabezados originales desde Google Sheets:", headers)
-
-    # Crear DataFrame
     df = pd.DataFrame(values[1:], columns=headers)
 
-    # Mostrar las columnas para depuración
-    st.write("Columnas en el DataFrame:", df.columns)
-
-    # Mapear las columnas
+    # Renombramos las columnas asegurando que coincidan
     column_map = {
         'sitio': 'Sitio', 
         'parte': 'Parte', 
@@ -48,14 +41,9 @@ def leer_stock():
         'stock': 'Stock Físico', 
         'stock deberia': 'Stock Óptimo'
     }
-
-    # Renombrar columnas
     df.rename(columns=column_map, inplace=True)
 
-    # Mostrar las columnas después de renombrar
-    st.write("Columnas después de renombrar:", df.columns)
-
-    # Convertir las columnas numéricas correctamente
+    # Convertimos las columnas numéricas correctamente
     df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
     df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
 
@@ -82,7 +70,6 @@ st.subheader("📍 Selecciona un sitio para ver su stock:")
 # Leer el stock una vez para evitar múltiples llamadas a la API
 df_stock = leer_stock()
 
-# Verificar si los datos fueron leídos correctamente
 if not df_stock.empty:
     # Obtener los sitios únicos
     sitios_unicos = sorted(df_stock['Sitio'].unique())
@@ -91,16 +78,8 @@ if not df_stock.empty:
     for sitio in sitios_unicos:
         with st.expander(f"📌 {sitio}", expanded=False):
             df_filtrado = df_stock[df_stock['Sitio'] == sitio]
-            # Configurar "Stock Óptimo" como solo lectura
-            st.data_editor(
-                df_filtrado, 
-                height=300, 
-                use_container_width=True, 
-                column_config={"Stock Óptimo": st.column_config.NumberColumn(disabled=True)}
-            )
-
-else:
-    st.error("No se pudo cargar el stock. Verifica los nombres de las columnas en Google Sheets.")
+            # Mostrar datos de stock, con "Stock Óptimo" deshabilitado
+            st.dataframe(df_filtrado, use_container_width=True)
 
 # **Formulario para modificar stock**
 st.subheader("Actualizar Stock")
