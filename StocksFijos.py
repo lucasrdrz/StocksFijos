@@ -5,6 +5,7 @@ from google.oauth2 import service_account
 import json
 
 # Configurar credenciales
+@st.cache_resource
 def load_credentials():
     try:
         SERVICE_ACCOUNT_INFO = st.secrets["GCP_KEY_JSON"]
@@ -24,73 +25,61 @@ def leer_stock():
     sheet = service.spreadsheets()
     result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:E').execute()
     values = result.get('values', [])
-
+    
     if not values:
-        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo'])
-
+        return pd.DataFrame(columns=['Sitio', 'Parte', 'Descripción', 'Stock Físico', 'Stock Óptimo'])
+    
     df = pd.DataFrame(values[1:], columns=values[0])
-
-    # Renombrar columnas según el mapeo correcto
-    column_map = {
-        'Sitio': 'Sitio',
-        'Parte': 'Parte',
-        'Stock Físico': 'Stock Físico',
-        'Stock Óptimo': 'Stock Óptimo'
-    }
-    df.rename(columns=column_map, inplace=True)
-
-    # Convertir valores a numéricos
+    
+    # Convertir a numérico
     df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
     df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
-
+    
     return df
 
 # Actualizar stock en Google Sheets
 def actualizar_stock(sitio, parte, cantidad, operacion):
     df = leer_stock()
-    sheet = service.spreadsheets()
+    fila = df[(df['Sitio'] == sitio) & (df['Parte'] == parte)].index
     
-    # Encontrar índice de la parte en el stock
-    index = df[(df['Sitio'] == sitio) & (df['Parte'] == parte)].index
-    if index.empty:
-        st.error("❌ Parte no encontrada en el stock.")
-        return
-
-    index = index[0] + 2  # Ajuste por encabezado en Sheets
-    
-    # Obtener stock actual y actualizar
-    stock_actual = df.at[index - 2, 'Stock Físico']
-    nuevo_stock = stock_actual + cantidad if operacion == 'sumar' else stock_actual - cantidad
-    nuevo_stock = max(nuevo_stock, 0)  # Evitar stock negativo
-    
-    # Actualizar en Sheets
-    range_update = f'StockFijo!C{index}'
-    body = {'values': [[nuevo_stock]]}
-    sheet.values().update(spreadsheetId=SPREADSHEET_ID, range=range_update, valueInputOption='RAW', body=body).execute()
-    st.success(f"✅ Stock actualizado: {stock_actual} → {nuevo_stock}")
+    if not fila.empty:
+        fila = fila[0] + 2  # Ajustar índice para Google Sheets
+        stock_actual = df.at[fila - 2, 'Stock Físico']
+        nuevo_stock = stock_actual + cantidad if operacion == 'sumar' else stock_actual - cantidad
+        
+        sheet = service.spreadsheets()
+        range_update = f'StockFijo!D{fila}'
+        body = {'values': [[nuevo_stock]]}
+        
+        try:
+            sheet.values().update(
+                spreadsheetId=SPREADSHEET_ID, 
+                range=range_update, 
+                valueInputOption='RAW', 
+                body=body
+            ).execute()
+            st.success(f"Stock actualizado: {stock_actual} → {nuevo_stock}")
+        except Exception as e:
+            st.error(f"Error al actualizar stock: {e}")
+    else:
+        st.error("No se encontró la parte en el sitio seleccionado.")
 
 # **Interfaz en Streamlit**
 st.title("📦 Control de Stock Fijo - Logística")
-st.subheader("📍 Selecciona un sitio:")
 
-# Leer stock
 df_stock = leer_stock()
 
 if not df_stock.empty:
-    sitios_unicos = sorted(df_stock['Sitio'].unique())
-    sitio_seleccionado = st.selectbox("Selecciona un sitio", sitios_unicos)
+    sitio_seleccionado = st.selectbox("Selecciona un sitio:", df_stock['Sitio'].unique())
     df_filtrado = df_stock[df_stock['Sitio'] == sitio_seleccionado]
+    
     st.dataframe(df_filtrado, use_container_width=True)
     
-    partes_unicas = df_filtrado['Parte'].unique()
-    parte_seleccionada = st.selectbox("Selecciona una parte", partes_unicas)
-    stock_actual = df_filtrado[df_filtrado['Parte'] == parte_seleccionada]['Stock Físico'].values[0]
-    st.write(f"Stock actual: {stock_actual}")
-
-    cantidad = st.number_input("Cantidad a modificar", min_value=1, step=1)
-    operacion = st.radio("Operación", ['sumar', 'restar'])
-
+    parte_seleccionada = st.selectbox("Selecciona una parte:", df_filtrado['Parte'].unique())
+    cantidad = st.number_input("Cantidad a modificar:", min_value=1, step=1)
+    operacion = st.radio("Operación:", ['sumar', 'restar'])
+    
     if st.button("Actualizar Stock"):
         actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
 else:
-    st.error("⚠️ No se pudo cargar el stock. Verifica los nombres de las columnas en Google Sheets.")
+    st.error("⚠️ No se pudo cargar el stock.")
