@@ -3,10 +3,21 @@ import pandas as pd
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
-# Configurar credenciales y acceso a Google Sheets
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-SERVICE_ACCOUNT_FILE = "credenciales.json"  # Ruta a tus credenciales
-SPREADSHEET_ID = "TU_SPREADSHEET_ID"
+# Configurar las credenciales y el servicio de la API de Google Sheets
+def load_credentials():
+    try:
+        SERVICE_ACCOUNT_INFO = st.secrets["GCP_KEY_JSON"]
+        info = json.loads(SERVICE_ACCOUNT_INFO)
+        SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+        credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        return build('sheets', 'v4', credentials=credentials)
+    except Exception as e:
+        st.error(f"Error al configurar las credenciales: {e}")
+        st.stop()
+
+service = load_credentials()
+
+SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 
 # Autenticación con Google Sheets
 creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
