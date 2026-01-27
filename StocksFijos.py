@@ -62,7 +62,7 @@ def leer_stock():
     # Convertir a numérico las columnas necesarias
     df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
     df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
-
+    df = df[['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo']]
     return df
     
 # **Actualizar stock en Google Sheets**
@@ -147,5 +147,6 @@ operacion = st.radio("Selecciona una operación", ("sumar", "restar"))
 # Botón para actualizar stock
 if st.button("Actualizar stock"):
     actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
+
 
 
