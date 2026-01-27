@@ -30,9 +30,20 @@ def leer_stock():
     values = result.get('values', [])
 
     headers = [h.strip() for h in values[0]]
-    df = pd.DataFrame(values[1:], columns=headers)
+    max_cols = len(headers)
 
-    # Nos quedamos SOLO con las columnas que importan (sin importar el orden real)
+    # 🔴 NORMALIZAR TODAS LAS FILAS AL MISMO LARGO
+    filas_normalizadas = []
+    for row in values[1:]:
+        if len(row) < max_cols:
+            row = row + [""] * (max_cols - len(row))
+        elif len(row) > max_cols:
+            row = row[:max_cols]
+        filas_normalizadas.append(row)
+
+    df = pd.DataFrame(filas_normalizadas, columns=headers)
+
+    # Nos quedamos solo con las que importan
     df = df[['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo']]
 
     df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
@@ -120,6 +131,7 @@ operacion = st.radio("Operación", ("sumar", "restar"))
 
 if st.button("Actualizar stock"):
     actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
+
 
 
 
