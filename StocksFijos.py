@@ -21,48 +21,30 @@ SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 
 # Leer stock desde Google Sheets
 def leer_stock():
-    sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range='StockFijo!A:E').execute()
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
+                                range="StockFijo!A1:Z").execute()
+
     values = result.get('values', [])
-
-    if not values:
-        return pd.DataFrame(columns=['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo'])
-
-    # Ver nombres de columnas originales
-    headers_original = values[0]
-    print("Encabezados originales:", headers_original)
-
-    # Convertir encabezados a minúsculas y eliminar espacios
-    headers = [h.strip().lower() for h in values[0]]
-    print("Encabezados normalizados:", headers)
+    headers = values[0]
 
     df = pd.DataFrame(values[1:], columns=headers)
 
-    # Mapeo de nombres de columnas
-    column_map = {
-        'sitio': 'Sitio',
-        'parte': 'Parte',
-        'stock físico': 'Stock Físico',
-        'stock óptimo': 'Stock Óptimo'
-    }
+    # Normalizar nombres (por si tienen espacios raros)
+    df.columns = df.columns.str.strip()
 
-    # Renombrar columnas según el mapeo
-    df.rename(columns=column_map, inplace=True)
-    print("Columnas después del renombrado:", df.columns.tolist())
+    # Seleccionar por NOMBRE, no por posición
+    df = df.rename(columns={
+        'Sitio': 'Sitio',
+        'Parte': 'Parte',
+        'Stock Físico': 'Stock Físico',
+        'Stock Óptimo': 'Stock Óptimo'
+    })
 
-    # Verificar que "Stock Físico" y "Stock Óptimo" existan
-    if 'Stock Físico' not in df.columns:
-        st.error("❌ La columna 'Stock Físico' no se encontró en los datos.")
-        return pd.DataFrame()
+    df = df[['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo']]
 
-    if 'Stock Óptimo' not in df.columns:
-        st.error("❌ La columna 'Stock Óptimo' no se encontró en los datos.")
-        return pd.DataFrame()
-
-    # Convertir a numérico las columnas necesarias
     df['Stock Físico'] = pd.to_numeric(df['Stock Físico'], errors='coerce').fillna(0)
     df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
-    df = df[['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo']]
+
     return df
     
 # **Actualizar stock en Google Sheets**
@@ -147,6 +129,7 @@ operacion = st.radio("Selecciona una operación", ("sumar", "restar"))
 # Botón para actualizar stock
 if st.button("Actualizar stock"):
     actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
+
 
 
 
