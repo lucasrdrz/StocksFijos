@@ -20,25 +20,17 @@ service = load_credentials()
 SPREADSHEET_ID = '1uC3qyYAmThXMfJ9Pwkompbf9Zs6MWhuTqT8jTVLYdr0'
 
 # Leer stock desde Google Sheets
-def leer_stock():
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
-                                range="StockFijo!A1:Z").execute()
+def leer_stock(sheet):
+    result = sheet.values().get(
+        spreadsheetId=SPREADSHEET_ID,
+        range="StockFijo!A1:Z"
+    ).execute()
 
     values = result.get('values', [])
     headers = values[0]
 
     df = pd.DataFrame(values[1:], columns=headers)
-
-    # Normalizar nombres (por si tienen espacios raros)
     df.columns = df.columns.str.strip()
-
-    # Seleccionar por NOMBRE, no por posición
-    df = df.rename(columns={
-        'Sitio': 'Sitio',
-        'Parte': 'Parte',
-        'Stock Físico': 'Stock Físico',
-        'Stock Óptimo': 'Stock Óptimo'
-    })
 
     df = df[['Sitio', 'Parte', 'Stock Físico', 'Stock Óptimo']]
 
@@ -46,6 +38,7 @@ def leer_stock():
     df['Stock Óptimo'] = pd.to_numeric(df['Stock Óptimo'], errors='coerce').fillna(0)
 
     return df
+
     
 # **Actualizar stock en Google Sheets**
 def actualizar_stock(sitio, parte, cantidad, operacion):
@@ -129,6 +122,7 @@ operacion = st.radio("Selecciona una operación", ("sumar", "restar"))
 # Botón para actualizar stock
 if st.button("Actualizar stock"):
     actualizar_stock(sitio_seleccionado, parte_seleccionada, cantidad, operacion)
+
 
 
 
